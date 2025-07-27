@@ -153,26 +153,33 @@ builder.Services.AddAuthorization(options => {
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
+    app.UseSwagger(); //creates endpoint for swagger.json
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "1.0");
+        options.SwaggerEndpoint("/swagger/v2/swagger.json", "2.0");
+        options.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
+    }); //creates swagger UI for testing all Web API endpoints / action methods
+}
+else
+{
+    app.UseSwagger(); //creates endpoint for swagger.json
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "MovieBuzz API v1.0");
+        options.SwaggerEndpoint("/swagger/v2/swagger.json", "MovieBuzz API v2.0");
+        options.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
+        options.DocumentTitle = "MovieBuzz API";
+    }); //creates swagger UI for testing all Web API endpoints / action methods
+    
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
-
-// Configure the HTTP request pipeline.
-
-app.UseHsts();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
-app.UseSwagger(); //creates endpoint for swagger.json
-app.UseSwaggerUI(options =>
-{
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "1.0");
-    options.SwaggerEndpoint("/swagger/v2/swagger.json", "2.0");
-}); //creates swagger UI for testing all Web API endpoints / action methods
 app.UseRouting();
 app.UseCors();
 
