@@ -172,16 +172,9 @@ if (!app.Environment.IsDevelopment())
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             app.Logger.LogInformation("Applying database migrations...");
             
-            // Check if database can be connected to
-            if (await context.Database.CanConnectAsync())
-            {
-                context.Database.Migrate();
-                app.Logger.LogInformation("Database migrations applied successfully.");
-            }
-            else
-            {
-                app.Logger.LogWarning("Cannot connect to database. Skipping migrations.");
-            }
+            // Apply migrations synchronously
+            context.Database.Migrate();
+            app.Logger.LogInformation("Database migrations applied successfully.");
         }
     }
     catch (Exception ex)
@@ -232,6 +225,34 @@ app.MapGet("/health", () => new {
     Status = "Healthy", 
     Environment = app.Environment.EnvironmentName,
     Timestamp = DateTime.UtcNow
+});
+
+// Add database health check endpoint
+app.MapGet("/health/database", async (HttpContext context) => {
+    try
+    {
+        using var scope = context.RequestServices.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        
+        var canConnect = await dbContext.Database.CanConnectAsync();
+        var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
+        var appliedMigrations = await dbContext.Database.GetAppliedMigrationsAsync();
+        
+        return Results.Ok(new { 
+            CanConnect = canConnect,
+            PendingMigrations = pendingMigrations.ToList(),
+            AppliedMigrations = appliedMigrations.ToList(),
+            Timestamp = DateTime.UtcNow
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new { 
+            Error = ex.Message,
+            CanConnect = false,
+            Timestamp = DateTime.UtcNow
+        });
+    }
 });
 
 app.Run();
