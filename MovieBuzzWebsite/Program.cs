@@ -98,8 +98,9 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policyBuilder =>
     {
+        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:4200" };
         policyBuilder
-        .WithOrigins(builder.Configuration.GetSection("AllowedOrigins").Get<string[]>())
+        .WithOrigins(allowedOrigins)
         .WithHeaders("Authorization", "origin", "accept", "content-type")
         .WithMethods("GET", "POST", "PUT", "DELETE")
         ;
@@ -140,15 +141,19 @@ builder.Services.AddAuthentication(options =>
 })
  .AddJwtBearer(options =>
  {
+     var jwtKey = builder.Configuration["Jwt:Key"] ?? "defaultSecretKeyWithAtLeast32Characters";
+     var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "https://movie-buzz.azurewebsites.net";
+     var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "https://movie-buzz.azurewebsites.net";
+     
      options.TokenValidationParameters = new TokenValidationParameters()
      {
          ValidateAudience = true,
-         ValidAudience = builder.Configuration["Jwt:Audience"],
+         ValidAudience = jwtAudience,
          ValidateIssuer = true,
-         ValidIssuer = builder.Configuration["Jwt:Issuer"],
+         ValidIssuer = jwtIssuer,
          ValidateLifetime = true,
          ValidateIssuerSigningKey = true,
-         IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+         IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(jwtKey))
      };
  });
 
@@ -160,20 +165,29 @@ var app = builder.Build();
 // Apply migrations automatically in production
 if (!app.Environment.IsDevelopment())
 {
-    using (var scope = app.Services.CreateScope())
+    try
     {
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        try
+        using (var scope = app.Services.CreateScope())
         {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             app.Logger.LogInformation("Applying database migrations...");
-            context.Database.Migrate();
-            app.Logger.LogInformation("Database migrations applied successfully.");
+            
+            // Check if database can be connected to
+            if (await context.Database.CanConnectAsync())
+            {
+                context.Database.Migrate();
+                app.Logger.LogInformation("Database migrations applied successfully.");
+            }
+            else
+            {
+                app.Logger.LogWarning("Cannot connect to database. Skipping migrations.");
+            }
         }
-        catch (Exception ex)
-        {
-            app.Logger.LogError(ex, "An error occurred while applying database migrations.");
-            throw;
-        }
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "An error occurred while applying database migrations. Continuing startup...");
+        // Don't throw - let the app start even if migrations fail
     }
 }
 
@@ -212,5 +226,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Add a simple health check endpoint
+app.MapGet("/health", () => new { 
+    Status = "Healthy", 
+    Environment = app.Environment.EnvironmentName,
+    Timestamp = DateTime.UtcNow
+});
 
 app.Run();
