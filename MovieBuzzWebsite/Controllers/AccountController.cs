@@ -120,43 +120,53 @@ namespace CitiesManager.WebAPI.Controllers.v1
 		[HttpPost("login")]
 		public async Task<IActionResult> PostLogin(LoginDTO loginDTO)
 		{
-			//Validation
-			if (ModelState.IsValid == false)
+			try
 			{
-				string errorMessage = string.Join(" | ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
-				return Problem(errorMessage);
-			}
-
-
-			var result = await _signInManager.PasswordSignInAsync(loginDTO.Email, loginDTO.Password, isPersistent: false, lockoutOnFailure: false);
-
-			if (result.Succeeded)
-			{
-				ApplicationUser? user = await _userManager.FindByEmailAsync(loginDTO.Email);
-
-				if (user == null)
+				//Validation
+				if (ModelState.IsValid == false)
 				{
-					return NoContent();
+					string errorMessage = string.Join(" | ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+					return Problem(errorMessage);
 				}
 
-				//sign-in
-				await _signInManager.SignInAsync(user, isPersistent: false);
+				var result = await _signInManager.PasswordSignInAsync(loginDTO.Email, loginDTO.Password, isPersistent: false, lockoutOnFailure: false);
 
-				var authenticationResponse = _jwtService.CreateJwtToken(user);
+				if (result.Succeeded)
+				{
+					ApplicationUser? user = await _userManager.FindByEmailAsync(loginDTO.Email);
 
-				user.RefreshToken = authenticationResponse.RefreshToken;
+					if (user == null)
+					{
+						return NoContent();
+					}
 
-				user.RefreshTokenExpirationDateTime = authenticationResponse.RefreshTokenExpirationDateTime;
-				
-				await _userManager.UpdateAsync(user);
+					//sign-in
+					await _signInManager.SignInAsync(user, isPersistent: false);
 
+					var authenticationResponse = _jwtService.CreateJwtToken(user);
 
-				return Ok(authenticationResponse);
+					user.RefreshToken = authenticationResponse.RefreshToken;
+
+					user.RefreshTokenExpirationDateTime = authenticationResponse.RefreshTokenExpirationDateTime;
+					
+					await _userManager.UpdateAsync(user);
+
+					return Ok(authenticationResponse);
+				}
+				else
+				{
+					return Problem("Invalid email or password");
+				}
 			}
-
-			else
+			catch (Exception ex)
 			{
-				return Problem("Invalid email or password");
+				// Return detailed error for debugging
+				return StatusCode(500, new { 
+					error = "Internal server error", 
+					details = ex.Message,
+					innerException = ex.InnerException?.Message,
+					stackTrace = ex.StackTrace 
+				});
 			}
 		}
 
