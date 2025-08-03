@@ -41,5 +41,10 @@ namespace Core.Service
             await _watchlistRepository.RemoveAsync(userId, imdbId);
             return (true, "Movie removed from watchlist.");
         }
+
+        public async Task<List<WatchListData>> GetAllWatchLists()
+        {
+            return await _watchlistRepository.GetAllAsync();
+        }
     }
 }

@@ -1,6 +1,9 @@
 ﻿using Core.DTO;
 using Core.Identity;
 using Core.ServiceContracts;
+using Core.Constants;
+using Core.Enums;
+using Core.Attributes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -10,203 +13,219 @@ using WebAPI.Controllers;
 
 namespace CitiesManager.WebAPI.Controllers.v1
 {
- /// <summary>
- /// 
- /// </summary>
- [AllowAnonymous]
- [ApiVersion("1.0")]
- public class AccountController : CustomControllerBase
- {
-  private readonly UserManager<ApplicationUser> _userManager;
-  private readonly SignInManager<ApplicationUser> _signInManager;
-  private readonly RoleManager<ApplicationRole> _roleManager;
-  private readonly IJwtService _jwtService;
+	/// <summary>
+	/// 
+	/// </summary>
+	[AllowAnonymous]
+	[ApiController]
+	[Route("api/[controller]")]
+	public class AccountController : ControllerBase
+	{
+		private readonly UserManager<ApplicationUser> _userManager;
+		private readonly SignInManager<ApplicationUser> _signInManager;
+		private readonly RoleManager<ApplicationRole> _roleManager;
+		private readonly IJwtService _jwtService;
 
-  /// <summary>
-  /// 
-  /// </summary>
-  /// <param name="userManager"></param>
-  /// <param name="signInManager"></param>
-  /// <param name="roleManager"></param>
-  public AccountController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, RoleManager<ApplicationRole> roleManager, IJwtService jwtService)
-  {
-   _userManager = userManager;
-   _signInManager = signInManager;
-   _roleManager = roleManager;
-   _jwtService = jwtService;
-  }
-
-
-  /// <summary>
-  /// 
-  /// </summary>
-  /// <param name="registerDTO"></param>
-  /// <returns></returns>
-  [HttpPost("register")]
-  public async Task<ActionResult<ApplicationUser>> PostRegister(RegisterDTO registerDTO)
-  {
-   try
-   {
-    //Validation
-    if (ModelState.IsValid == false)
-    {
-     string errorMessage = string.Join(" | ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
-     return Problem(errorMessage);
-    }
-
-    //Create user
-    ApplicationUser user = new ApplicationUser()
-    {
-     Email = registerDTO.Email,
-     PhoneNumber = registerDTO.PhoneNumber,
-     UserName = registerDTO.Email,
-     PersonName = registerDTO.PersonName
-    };
-
-    IdentityResult result = await _userManager.CreateAsync(user, registerDTO.Password);
-
-    if (result.Succeeded)
-    {
-     //sign-in
-     await _signInManager.SignInAsync(user, isPersistent: false);
-
-     var authenticationResponse = _jwtService.CreateJwtToken(user);
-     user.RefreshToken = authenticationResponse.RefreshToken;
-     user.RefreshTokenExpirationDateTime = authenticationResponse.RefreshTokenExpirationDateTime;
-     await _userManager.UpdateAsync(user);
-
-     return Ok(authenticationResponse);
-    }
-    else
-    {
-     string errorMessage = string.Join(" | ", result.Errors.Select(e => e.Description)); //error1 | error2
-     return Problem(errorMessage);
-    }
-   }
-   catch (Exception ex)
-   {
-    return Problem($"Registration failed: {ex.Message}");
-   }
-  }
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="userManager"></param>
+		/// <param name="signInManager"></param>
+		/// <param name="roleManager"></param>
+		public AccountController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, RoleManager<ApplicationRole> roleManager, IJwtService jwtService)
+		{
+			_userManager = userManager;
+			_signInManager = signInManager;
+			_roleManager = roleManager;
+			_jwtService = jwtService;
+		}
 
 
-  /// <summary>
-  /// 
-  /// </summary>
-  /// <param name="email"></param>
-  /// <returns></returns>
-  [HttpGet]
-  public async Task<IActionResult> IsEmailAlreadyRegistered(string email)
-  {
-   ApplicationUser? user = await _userManager.FindByEmailAsync(email);
-
-   if (user == null)
-   {
-    return Ok(true);
-   }
-   else
-   {
-    return Ok(false);
-   }
-  }
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="registerDTO"></param>
+		/// <returns></returns>
+		[HttpPost("register")]
+		public async Task<ActionResult<ApplicationUser>> PostRegister(RegisterDTO registerDTO)
+		{
+			//Validation
+			if (ModelState.IsValid == false)
+			{
+				string errorMessage = string.Join(" | ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+				return Problem(errorMessage);
+			}
 
 
-  /// <summary>
-  /// 
-  /// </summary>
-  /// <param name="loginDTO"></param>
-  /// <returns></returns>
-  [HttpPost("login")]
-  public async Task<IActionResult> PostLogin(LoginDTO loginDTO)
-  {
-   try
-   {
-    //Validation
-    if (ModelState.IsValid == false)
-    {
-     string errorMessage = string.Join(" | ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
-     return Problem(errorMessage);
-    }
+			//Create user
+			ApplicationUser user = new ApplicationUser()
+			{
+				Email = registerDTO.Email,
+				PhoneNumber = registerDTO.PhoneNumber,
+				UserName = registerDTO.Email,
+				PersonName = registerDTO.PersonName,
+				Role = registerDTO.Role
+			};
 
-    var result = await _signInManager.PasswordSignInAsync(loginDTO.Email, loginDTO.Password, isPersistent: false, lockoutOnFailure: false);
+			IdentityResult result = await _userManager.CreateAsync(user, registerDTO.Password);
 
-    if (result.Succeeded)
-    {
-     ApplicationUser? user = await _userManager.FindByEmailAsync(loginDTO.Email);
+			if (result.Succeeded)
+			{
+				//sign-in
+				await _signInManager.SignInAsync(user, isPersistent: false);
 
-     if (user == null)
-     {
-      return Problem("User not found after successful login");
-     }
+				var authenticationResponse = _jwtService.CreateJwtToken(user);
+				user.RefreshToken = authenticationResponse.RefreshToken;
 
-     //sign-in
-     await _signInManager.SignInAsync(user, isPersistent: false);
-
-     var authenticationResponse = _jwtService.CreateJwtToken(user);
-
-     user.RefreshToken = authenticationResponse.RefreshToken;
-     user.RefreshTokenExpirationDateTime = authenticationResponse.RefreshTokenExpirationDateTime;
-     await _userManager.UpdateAsync(user);
-
-     return Ok(authenticationResponse);
-    }
-    else
-    {
-     return Problem("Invalid email or password");
-    }
-   }
-   catch (Exception ex)
-   {
-    // Log the detailed error for debugging
-    return Problem($"Login failed: {ex.Message}");
-   }
-  }
+				user.RefreshTokenExpirationDateTime = authenticationResponse.RefreshTokenExpirationDateTime;
+				await _userManager.UpdateAsync(user);
 
 
-  /// <summary>
-  /// 
-  /// </summary>
-  /// <returns></returns>
-  [HttpGet("logout")]
-  public async Task<IActionResult> GetLogout()
-  {
-   await _signInManager.SignOutAsync();
-
-   return NoContent();
-  }
+				return Ok(authenticationResponse);
+			}
+			else
+			{
+				string errorMessage = string.Join(" | ", result.Errors.Select(e => e.Description)); //error1 | error2
+				return Problem(errorMessage);
+			}
+		}
 
 
-  [HttpPost("generate-new-jwt-token")]
-  public async Task<IActionResult> GenerateNewAccessToken(TokenModel tokenModel)
-  {
-   if (tokenModel == null)
-   {
-    return BadRequest("Invalid client request");
-   }
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="email"></param>
+		/// <returns></returns>
+		[HttpGet]
+		public async Task<IActionResult> IsEmailAlreadyRegistered(string email)
+		{
+			ApplicationUser? user = await _userManager.FindByEmailAsync(email);
 
-   ClaimsPrincipal? principal = _jwtService.GetPrincipalFromJwtToken(tokenModel.Token);
-   if (principal == null)
-   {
-    return BadRequest("Invalid jwt access token");
-   }
+			if (user == null)
+			{
+				return Ok(true);
+			}
+			else
+			{
+				return Ok(false);
+			}
+		}
 
-   string? email = principal.FindFirstValue(ClaimTypes.Email);
 
-   ApplicationUser? user = await _userManager.FindByEmailAsync(email);
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="loginDTO"></param>
+		/// <returns></returns>
+		[HttpPost("login")]
+		public async Task<IActionResult> PostLogin(LoginDTO loginDTO)
+		{
+			//Validation
+			if (ModelState.IsValid == false)
+			{
+				string errorMessage = string.Join(" | ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+				return Problem(errorMessage);
+			}
 
-   if (user == null || user.RefreshToken != tokenModel.RefreshToken || user.RefreshTokenExpirationDateTime <= DateTime.Now)
-   {
-    return BadRequest("Invalid refresh token");
-   }
 
-   AuthenticationResponse authenticationResponse  = _jwtService.CreateJwtToken(user);
+			var result = await _signInManager.PasswordSignInAsync(loginDTO.Email, loginDTO.Password, isPersistent: false, lockoutOnFailure: false);
 
-   user.RefreshToken = authenticationResponse.RefreshToken;
-   user.RefreshTokenExpirationDateTime = authenticationResponse.RefreshTokenExpirationDateTime;
+			if (result.Succeeded)
+			{
+				ApplicationUser? user = await _userManager.FindByEmailAsync(loginDTO.Email);
 
-   await _userManager.UpdateAsync(user);
+				if (user == null)
+				{
+					return NoContent();
+				}
 
-   return Ok(authenticationResponse);
-  }
- }
+				//sign-in
+				await _signInManager.SignInAsync(user, isPersistent: false);
+
+				var authenticationResponse = _jwtService.CreateJwtToken(user);
+
+				user.RefreshToken = authenticationResponse.RefreshToken;
+
+				user.RefreshTokenExpirationDateTime = authenticationResponse.RefreshTokenExpirationDateTime;
+				
+				await _userManager.UpdateAsync(user);
+
+
+				return Ok(authenticationResponse);
+			}
+
+			else
+			{
+				return Problem("Invalid email or password");
+			}
+		}
+
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <returns></returns>
+		[HttpGet("logout")]
+		public async Task<IActionResult> GetLogout()
+		{
+			await _signInManager.SignOutAsync();
+
+			return NoContent();
+		}
+
+
+		[HttpPost("generate-new-jwt-token")]
+		public async Task<IActionResult> GenerateNewAccessToken(TokenModel tokenModel)
+		{
+			if (tokenModel == null)
+			{
+				return BadRequest("Invalid client request");
+			}
+
+			ClaimsPrincipal? principal = _jwtService.GetPrincipalFromJwtToken(tokenModel.Token);
+			if (principal == null)
+			{
+				return BadRequest("Invalid jwt access token");
+			}
+
+			string? email = principal.FindFirstValue(ClaimTypes.Email);
+
+			ApplicationUser? user = await _userManager.FindByEmailAsync(email);
+
+			if (user == null || user.RefreshToken != tokenModel.RefreshToken || user.RefreshTokenExpirationDateTime <= DateTime.Now)
+			{
+				return BadRequest("Invalid refresh token");
+			}
+
+			AuthenticationResponse authenticationResponse = _jwtService.CreateJwtToken(user);
+
+			user.RefreshToken = authenticationResponse.RefreshToken;
+			user.RefreshTokenExpirationDateTime = authenticationResponse.RefreshTokenExpirationDateTime;
+
+			await _userManager.UpdateAsync(user);
+
+			return Ok(authenticationResponse);
+		}
+
+
+		[HttpGet("users")]
+		[AdminOnly]
+		public async Task<IActionResult> GetAllUsers()
+		{
+			var users = _userManager.Users
+				.Where(u => u.Role != UserRole.Admin)
+				.ToList();
+
+			// Return all users details without sensitive information
+			var usersList = users.Select(user => new
+			{
+				Id = user.Id,
+				PersonName = user.PersonName,
+				Email = user.Email,
+				PhoneNumber = user.PhoneNumber
+			}).ToList();
+
+			return Ok(usersList);
+		}
+	}
 }

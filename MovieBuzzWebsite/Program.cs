@@ -45,11 +45,6 @@ builder.Services.AddApiVersioning(config =>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default"));
-    if (builder.Environment.IsDevelopment())
-    {
-        options.EnableSensitiveDataLogging();
-        options.EnableDetailedErrors();
-    }
 });
 
 
@@ -98,9 +93,8 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policyBuilder =>
     {
-        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:4200" };
-        policyBuilder
-        .WithOrigins(allowedOrigins)
+        policyBuilder.AllowAnyOrigin() //Allow any origin
+		//.WithOrigins(builder.Configuration.GetSection("AllowedOrigins").Get<string[]>())
         .WithHeaders("Authorization", "origin", "accept", "content-type")
         .WithMethods("GET", "POST", "PUT", "DELETE")
         ;
@@ -141,19 +135,15 @@ builder.Services.AddAuthentication(options =>
 })
  .AddJwtBearer(options =>
  {
-     var jwtKey = builder.Configuration["Jwt:Key"] ?? "defaultSecretKeyWithAtLeast32Characters";
-     var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "https://movie-buzz.azurewebsites.net";
-     var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "https://movie-buzz.azurewebsites.net";
-     
      options.TokenValidationParameters = new TokenValidationParameters()
      {
          ValidateAudience = true,
-         ValidAudience = jwtAudience,
+         ValidAudience = builder.Configuration["Jwt:Audience"],
          ValidateIssuer = true,
-         ValidIssuer = jwtIssuer,
+         ValidIssuer = builder.Configuration["Jwt:Issuer"],
          ValidateLifetime = true,
          ValidateIssuerSigningKey = true,
-         IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(jwtKey))
+         IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
      };
  });
 
@@ -161,28 +151,6 @@ builder.Services.AddAuthorization(options => {
 });
 
 var app = builder.Build();
-
-// Apply migrations automatically in production
-if (!app.Environment.IsDevelopment())
-{
-    try
-    {
-        using (var scope = app.Services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            app.Logger.LogInformation("Applying database migrations...");
-            
-            // Apply migrations synchronously
-            context.Database.Migrate();
-            app.Logger.LogInformation("Database migrations applied successfully.");
-        }
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "An error occurred while applying database migrations. Continuing startup...");
-        // Don't throw - let the app start even if migrations fail
-    }
-}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -219,40 +187,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Add a simple health check endpoint
-app.MapGet("/health", () => new { 
-    Status = "Healthy", 
-    Environment = app.Environment.EnvironmentName,
-    Timestamp = DateTime.UtcNow
-});
-
-// Add database health check endpoint
-app.MapGet("/health/database", async (HttpContext context) => {
-    try
-    {
-        using var scope = context.RequestServices.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        
-        var canConnect = await dbContext.Database.CanConnectAsync();
-        var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync();
-        var appliedMigrations = await dbContext.Database.GetAppliedMigrationsAsync();
-        
-        return Results.Ok(new { 
-            CanConnect = canConnect,
-            PendingMigrations = pendingMigrations.ToList(),
-            AppliedMigrations = appliedMigrations.ToList(),
-            Timestamp = DateTime.UtcNow
-        });
-    }
-    catch (Exception ex)
-    {
-        return Results.Ok(new { 
-            Error = ex.Message,
-            CanConnect = false,
-            Timestamp = DateTime.UtcNow
-        });
-    }
-});
 
 app.Run();

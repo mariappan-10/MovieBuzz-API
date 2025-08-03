@@ -16,5 +16,7 @@ namespace Core.RepositoriesContracts
 
         Task<List<string>> GetByUserIdAsync(Guid userId);
 
+        Task<List<WatchListData>> GetAllAsync();
+
     }
 }

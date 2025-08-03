@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Core.Enums;
+using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
 
@@ -29,5 +30,7 @@ namespace Core.DTO
   [Required(ErrorMessage = "Confirm Password can't be blank")]
   [Compare("Password", ErrorMessage = "Password and confirm password do not match")]
   public string ConfirmPassword { get; set; } = string.Empty;
+
+  public UserRole Role { get; set; } = UserRole.Client;
  }
 }
