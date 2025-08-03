@@ -95,10 +95,20 @@ builder.Services.AddCors(options =>
     {
         policyBuilder.AllowAnyOrigin() //Allow any origin
 		//.WithOrigins(builder.Configuration.GetSection("AllowedOrigins").Get<string[]>())
-        .WithHeaders("Authorization", "origin", "accept", "content-type")
-        .WithMethods("GET", "POST", "PUT", "DELETE")
+        .AllowAnyHeader()
+        .AllowAnyMethod()
         ;
     });
+
+    // Previous restrictive CORS configuration (commented out)
+    //options.AddDefaultPolicy(policyBuilder =>
+    //{
+    //    policyBuilder.AllowAnyOrigin() //Allow any origin
+    //    //.WithOrigins(builder.Configuration.GetSection("AllowedOrigins").Get<string[]>())
+    //    .WithHeaders("Authorization", "origin", "accept", "content-type")
+    //    .WithMethods("GET", "POST", "PUT", "DELETE")
+    //    ;
+    //});
 
     //options.AddPolicy("4100Client", policyBuilder =>
     //{
