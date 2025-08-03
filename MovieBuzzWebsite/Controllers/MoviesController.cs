@@ -1,4 +1,5 @@
 ﻿using Core.ServiceContracts;
+using Core.Attributes;
 using Infrastructure.DatabaseContext;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -77,6 +78,7 @@ namespace API.Controllers
 
 
         [HttpPost("add-to-watchlist")]
+        [ClientOrAdmin]
         public async Task<IActionResult> AddMovieToWatchList([FromQuery] string imdbId)
         {
             if (string.IsNullOrWhiteSpace(imdbId))
@@ -102,7 +104,7 @@ namespace API.Controllers
         }
 
         [HttpDelete("remove-from-watchlist")]
-
+        [ClientOrAdmin]
         public async Task<IActionResult> RemoveMovieFromWatchList([FromQuery] string imdbId)
         {
             if (string.IsNullOrWhiteSpace(imdbId))
@@ -123,7 +125,24 @@ namespace API.Controllers
             }
         }
 
+        [HttpGet("display-watchlist/{userId}")]
+        [AdminOnly]
+        public async Task<IActionResult> GetWatchListOfUser(Guid userId)
+        {
+            try
+            {
+                var watchListIds = await _watchListService.GetWatchListByUserId(userId);
+                //var watchListPreview = await _movieService.GetWatchListPreview(watchListIds);
+                return Ok(watchListIds);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An unexpected error occurred: {ex.Message}");
+            }
+        }
+
         [HttpGet("display-watchlist")]
+        [ClientOrAdmin]
         public async Task<IActionResult> GetWatchList()
         {
             var userIdString = GetUserId();
@@ -132,8 +151,22 @@ namespace API.Controllers
             try
             {
                 var watchListIds = await _watchListService.GetWatchListByUserId(userId);
-                //var watchListPreview = await _movieService.GetWatchListPreview(watchListIds);
-                return Ok(watchListIds);
+				return Ok(watchListIds);
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, $"An unexpected error occurred: {ex.Message}");
+			}
+		}
+
+[HttpGet("admin/all-users-watchlists")]
+        [AdminOnly]
+        public async Task<IActionResult> GetAllUsersWatchlists()
+        {
+            try
+            {
+                var allWatchlists = await _watchListService.GetAllWatchLists();
+                return Ok(allWatchlists);
             }
             catch (Exception ex)
             {

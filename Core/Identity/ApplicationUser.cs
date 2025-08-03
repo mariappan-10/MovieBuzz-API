@@ -1,4 +1,5 @@
 ﻿using Core.Entities;
+using Core.Enums;
 using Microsoft.AspNetCore.Identity;
 
 namespace Core.Identity
@@ -8,6 +9,7 @@ namespace Core.Identity
         public string? PersonName { get; set; }
         public string? RefreshToken { get; set; }
         public DateTime RefreshTokenExpirationDateTime { get; set; }
+        public UserRole Role { get; set; } = UserRole.Client;
         public ICollection<WatchListData> Watchlist { get; set; } = new List<WatchListData>();
     }
 }

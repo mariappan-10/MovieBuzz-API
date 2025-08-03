@@ -2,6 +2,7 @@
 using Core.DTO;
 using Core.Identity;
 using Core.ServiceContracts;
+using Core.Constants;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -38,7 +39,8 @@ namespace Core.Services
      new Claim(JwtRegisteredClaimNames.Iat,  new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64), //Issued at (date and time of token generation)
      new Claim(ClaimTypes.NameIdentifier, user.Email), //Unique name identifier of the user (Email)
      new Claim(ClaimTypes.Name, user.PersonName), //Name of the user
-     new Claim(ClaimTypes.Email, user.Email) //Name of the user
+     new Claim(ClaimTypes.Email, user.Email), //Email of the user
+     new Claim("Role", user.Role.ToString()) //Role of the user
      };
 
             // Create a SymmetricSecurityKey object using the key specified in the configuration.
@@ -66,6 +68,7 @@ namespace Core.Services
                 Token = token,
                 Email = user.Email,
                 PersonName = user.PersonName,
+                Role = user.Role.ToString(),
                 Expiration = expiration,
                 RefreshToken = GenerateRefreshToken(),
                 RefreshTokenExpirationDateTime = DateTime.Now.AddMinutes(Convert.ToInt32(_configuration["RefreshToken:EXPIRATION_MINUTES"]))

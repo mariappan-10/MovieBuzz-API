@@ -50,5 +50,10 @@ namespace Infrastructure.Repositories
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task<List<WatchListData>> GetAllAsync()
+        {
+            return await _context.WatchListDatas.ToListAsync();
+        }
     }
 }
