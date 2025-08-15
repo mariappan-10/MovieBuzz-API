@@ -44,7 +44,7 @@ builder.Services.AddApiVersioning(config =>
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("Default"));
+    options.UseMySQL(builder.Configuration.GetConnectionString("Default"));
 });
 
 
