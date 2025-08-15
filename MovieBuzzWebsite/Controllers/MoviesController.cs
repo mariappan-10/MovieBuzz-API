@@ -63,11 +63,11 @@ namespace API.Controllers
 
         [AllowAnonymous]
         [HttpGet("search/{title}")]
-        public async Task<IActionResult> GetSearchPreview(string title)
+        public async Task<IActionResult> GetSearchPreview(string title, [FromQuery] int? year = null, [FromQuery] int? page = null)
         {
             try
             {
-                var searchResponse = await _movieService.GetSearchPreview(title);
+                var searchResponse = await _movieService.GetSearchPreview(title, year, page);
                 return Ok(searchResponse);
             }
             catch (Exception ex)
