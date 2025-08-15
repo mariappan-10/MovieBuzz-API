@@ -54,9 +54,17 @@ namespace Core.Service
             return movie;
         }
 
-        public async Task<SearchPreviewResponse> GetSearchPreview(string title)
+        public async Task<SearchPreviewResponse> GetSearchPreview(string title, int? year = null, int? page = null)
         {
             var url = $"{_baseUrl}?apikey={_apiKey}&s={Uri.EscapeDataString(title)}&type=movie";
+            if (year.HasValue)
+            {
+                url += $"&y={year.Value}";
+            }
+            if (page.HasValue)
+            {
+                url += $"&page={page.Value}";
+            }
             var response = await _httpClient.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
